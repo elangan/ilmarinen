@@ -1,9 +1,12 @@
-(ns ilmarinen.jobs.post)
+(ns ilmarinen-jobs.post
+  (:require [clojure.string :as string]
+            [ilmarinen-jobs.core :as core]
+            [cljs-lambda.util :refer [async-lambda-fn]]))
 
 
 (defn valid-item?
   [item]
-  (not (or (nil? item) (clojure.string/blank? item))))
+  (not (or (nil? item) (string/blank? item))))
 
 ((defn valid-quantity?
   [quantity]
@@ -15,7 +18,7 @@
 
 (defn add-id
   [job]
-  (conj event [:id (str (random-uuid))]))
+  (conj job [:id (str (random-uuid))]))
 
 (defn handle-name
   [job]
@@ -27,7 +30,7 @@
 
 (defn add-ingredients
   [job]
-  (conj {:ingredients (get-ingredients (:item job)) job}))
+  (conj {:ingredients (get-ingredients (:item job))} job))
 
 (defn make-job
   [event]
@@ -37,9 +40,9 @@
 
 
 ((defn ^:export handler
-  [js_event contet]
+  [js-event context]
   (let [event  (js->clj js-event)]
     (if (valid? event)
       (let [record (make-job event)]
-        (persist record context))
+        (core/persist record context))
       (.fail context "failed validation")))))
