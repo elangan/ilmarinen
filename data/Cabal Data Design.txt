@@ -1,0 +1,41 @@
+Cabal Data Design
+=================
+
+Stacks (or Inventory)
+---------------------
+
+A Stack is a quantity of items purchased in one transaction or built in a
+single job at a particular price on a particular date.
+
+Sources of stacks:
+ * wallet transactions (VN and BSTAH of materials only, available in XML API)
+ * evepraisal links (purchased from alliance, maps to wallet journal entry)
+ * pastes of in-game wallet transactions (I fucked up and bought stuff personal)
+ * jobs (paste from spreadsheet, blueprint calculation, industry job XML API)
+
+Initial import of current data.
+
+Fields:
+ - item
+ - creation date
+ - unit price
+ - initial quantity
+
+Allocations
+-----------
+
+Stacks get Allocated until they are fully allocated.  A fully allocated stack
+has allocations that sum to its initial quantity.
+
+ - job
+ - stack
+ - quantity
+
+Jobs
+----
+
+A Job is a set of Allocations that produces a Stack.
+
+ - label
+ - stack (output)
+ - job fee
