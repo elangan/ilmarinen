@@ -10,7 +10,6 @@ CREATE TABLE inventory (
   , unit_price INTEGER CHECK(unit_price > 0)  -- in tenths of an isk
   , date_acquired TEXT DEFAULT CURRENT_TIMESTAMP
   , FOREIGN KEY(item_name) REFERENCES items(name)
-  , FOREIGN KEY(job_allocation) REFERENCES jobs(id)
 );
 
 CREATE TABLE blueprint_copies (
