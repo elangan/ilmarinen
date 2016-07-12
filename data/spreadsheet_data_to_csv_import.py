@@ -2,10 +2,10 @@ import csv
 import re
 
 def to_float(val):
-    return float(re.sub('[^0-9.]', '', val''))
+    return float(re.sub('[^0-9.]', '', val))
 
 def to_int(val):
-    return int(re.sub('[^0-9]', '', val''))
+    return int(re.sub('[^0-9]', '', val))
 
 BLUEPRINT_GROUPS = [
     'Hybrid Reactions',
@@ -27,12 +27,13 @@ with open('spreadsheet_data.csv', 'r') as f:
     for row in reader:
         groups.setdefault(row['Item'], row['Group'])
         
-        item = inventory.setdefault(row['Item'], {})
-        date = item.setdefault(row['Date Acquired'], {})
+        item_name = inventory.setdefault(row['Item'], {})
+        date = item_name.setdefault(row['Date Acquired'], {})
         price = date.setdefault(to_float(row['Unit Price']), {'qty': 0, 'id': inventory_id})
         if price['qty'] == 0:
             inventory_id += 1
-        inventory[row['Item']][row['Date Acquired']][to_float(row['Unit Price'])] += to_int(row['Qty'])
+        item = inventory[row['Item']][row['Date Acquired']][to_float(row['Unit Price'])]
+        item['qty'] += to_int(row['Qty'])
         
         if row['Group'] in BLUEPRINT_GROUPS:
             blueprints[inventory_id] = {'runs': row['Runs'], 'me': row['ME']}
@@ -51,15 +52,15 @@ with open('item_names.csv', 'w') as f:
 with open('inventory.csv', 'w') as f:
     writer = csv.writer(f)
     for item_name in inventory.keys():
-        for date in inventory[item].keys():
-            for price in inventory[item][date].keys():
+        for date in inventory[item_name].keys():
+            for price in inventory[item_name][date].keys():
                 item = inventory[item_name][date][price]
                 writer.writerow([item['id'], item_name, item['qty'], price, date])
 
 with open('blueprints.csv', 'w') as f:
     writer = csv.writer(f)
     for id in blueprints.keys():
-        writer.writerow(id, blueprints[id]['runs'], blueprints[id]['me'])
+        writer.writerow([id, blueprints[id]['runs'], blueprints[id]['me']])
 
 with open('jobs.csv', 'w') as f:
     writer = csv.writer(f)
