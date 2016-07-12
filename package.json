@@ -1,10 +1,11 @@
 {
-    "name": "ilmarinen",
-    "main": "server.js",
-    "repository": "https://github.com/wffurr/ilmarinen",
-    "description": "EVE spaceship job tracker",
-    "dependencies": {
-        "express": "~4.0.0",
-        "body-parser": "~1.0.1"
-    }
+  "name": "ilmarinen",
+  "main": "server.js",
+  "repository": "https://github.com/wffurr/ilmarinen",
+  "description": "EVE spaceship job tracker",
+  "dependencies": {
+    "body-parser": "~1.0.1",
+    "express": "~4.0.0",
+    "sqlite3": "^3.1.4"
+  }
 }

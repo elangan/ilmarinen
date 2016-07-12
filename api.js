@@ -2,12 +2,12 @@ var express = require('express');
 var fs = require('fs');
 var sqlite = require('sqlite3');
 
-var DB_PATH = '/data/ilmarinen.sqlite';
+var DB_PATH = './data/ilmarinen.sqlite';
 var exists = fs.existsSync(DB_PATH);
-var db = new sqlite3.Database(DB_PATH);
+var db = new sqlite.Database(DB_PATH);
 if (!exists) {
   db.serialize(function() {
-    db.exec(fs.readFileSync('/data/schema.sql'), function(err) {
+    db.exec(fs.readFileSync('./data/schema.sql'), function(err) {
       if (err !== null) {
         throw err;
       }
@@ -20,8 +20,8 @@ var router = express.Router();
 
 // test route to make sure everything is working (accessed at GET http://localhost:8080/api)
 router.get('/', function(req, res) {
-    res.json({ message: 'Then began old Wainamoinen,' +
-      'Ancient bard and famous singer,' +
+    res.json({ message: 'Then began old Wainamoinen, ' +
+      'Ancient bard and famous singer, ' +
       'To renew his incantations;' });
 });
 
@@ -60,7 +60,7 @@ router.route('inventory')
                  if(err) { error = err; return; }
                  new_ids.push(this.lastID);
                }
-        });
+        );
         if (error) break;
       }
     });
@@ -79,9 +79,15 @@ router.get('inventory/available', function(req, res) {
          'LEFT JOIN job_allocation AS alloc ON inv.id = alloc.inventory_id' +
          'GROUP BY inv.id' +
          'HAVING (inv.quantity - SUM(alloc.quantity) > 0)',
-         function(req, res) {
-          
-         });
+          function(err, rows) {
+            if (err) {
+              res.json({"error": err});
+              res.status(502);
+              return;
+            }
+            res.json({'results': rows});
+          });
+
 });
 
 router.route('jobs')
