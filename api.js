@@ -1,13 +1,13 @@
 var express = require('express');
 var fs = require('fs');
-var sqlite = require('sqlite3');
+var sqlite = require('sqlite3').verbose();
 
 var DB_PATH = './data/ilmarinen.sqlite';
 var exists = fs.existsSync(DB_PATH);
 var db = new sqlite.Database(DB_PATH);
 if (!exists) {
   db.serialize(function() {
-    db.exec(fs.readFileSync('./data/schema.sql'), function(err) {
+    db.exec(fs.readFileSync('./data/schema.sql', 'utf8'), function(err) {
       if (err !== null) {
         throw err;
       }
@@ -15,6 +15,9 @@ if (!exists) {
   });
 }
 
+db.on('trace', function(query) {
+  console.log('Executing query: ' + query);
+});
 
 var router = express.Router();
 
@@ -25,7 +28,7 @@ router.get('/', function(req, res) {
       'To renew his incantations;' });
 });
 
-router.route('inventory')
+router.route('/inventory')
   .get(function(req, res) {
     db.all('SELECT * FROM inventory;', function(err, rows) {
       if(err) {
@@ -73,12 +76,12 @@ router.route('inventory')
     }
   });
 
-router.get('inventory/available', function(req, res) {
-  db.all('SELECT inv.id, inv.item_name, inv.unit_price, (inv.quantity - SUM(alloc.quantity) AS avail_qty)' +
-         'FROM inventory AS inv' +
-         'LEFT JOIN job_allocation AS alloc ON inv.id = alloc.inventory_id' +
-         'GROUP BY inv.id' +
-         'HAVING (inv.quantity - SUM(alloc.quantity) > 0)',
+router.get('/inventory/available', function(req, res) {
+  db.all('SELECT inv.id, inv.item_name, inv.unit_price, (inv.quantity - SUM(alloc.quantity)) AS avail_qty ' +
+          'FROM inventory AS inv ' +
+          'LEFT JOIN job_allocation AS alloc ON inv.id = alloc.inventory_id ' +
+          'GROUP BY inv.id ' +
+          'HAVING (inv.quantity - SUM(alloc.quantity)) > 0;',
           function(err, rows) {
             if (err) {
               res.json({"error": err});
@@ -87,10 +90,9 @@ router.get('inventory/available', function(req, res) {
             }
             res.json({'results': rows});
           });
-
 });
 
-router.route('jobs')
+router.route('/jobs')
   .get(function(req, res) {
   
   })
