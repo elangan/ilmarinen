@@ -16,7 +16,7 @@ CREATE TABLE blueprint_copies (
     inventory_id INTEGER PRIMARY KEY AUTOINCREMENT
   , runs INTEGER CHECK(runs > 0)
   , material_efficiency INTEGER CHECK(material_efficiency >= 0 AND material_efficiency <= 10)
-  , FOREIGN KEY(id) REFERENCES inventory(id)
+  , FOREIGN KEY(inventory_id) REFERENCES inventory(id)
 );
 
 CREATE TABLE inventory_import (
@@ -33,7 +33,7 @@ CREATE TABLE jobs (
   , end_time TEXT NOT NULL
   , job_fee INTEGER NOT NULL -- tenths of isk
   , output_lot INTEGER
-  , FOREIGN KEY(blueprint_id) REFERENCES blueprint_copies(id)
+  , FOREIGN KEY(blueprint_id) REFERENCES blueprint_copies(inventory_id)
   , FOREIGN KEY(output_lot) REFERENCES inventory(id)
 );
 
@@ -43,8 +43,8 @@ CREATE TABLE job_allocation (
   , quantity INTEGER CHECK(quantity > 0)
   , PRIMARY KEY(inventory_id, job_id)
   , FOREIGN KEY(inventory_id) REFERENCES inventory(id)
-  , FOREIGN KEY(jobs_id) REFERENCES jobs(id)
-)
+  , FOREIGN KEY(job_id) REFERENCES jobs(id)
+);
 
 CREATE TABLE inventory_audit(
     inventory_id INTEGER NOT NULL
