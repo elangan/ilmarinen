@@ -12,11 +12,11 @@ app.use(bodyParser.json());
 var port = process.env.PORT || 8080;
 
 app.get('/', function(req, res) {
-  res.send('May the wolves devour the dreamer,'+
-    'Eat the Laplander for dinner,' +
-    'May disease destroy the braggart,' +
-    'Him who said that I should never' +
-    'See again my much-loved home-land,');
+  res.send('<pre>May the wolves devour the dreamer,\n'+
+    'Eat the Laplander for dinner,\n' +
+    'May disease destroy the braggart,\n' +
+    'Him who said that I should never\n' +
+    'See again my much-loved home-land,</pre>');
 })
 
 app.use('/api', api);
