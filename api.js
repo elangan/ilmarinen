@@ -149,10 +149,6 @@ router.route('/jobs')
               }
             }
           }
-          var checkInventory = function() {
-            res.status(200);
-            res.json(jobs);
-          }
           var jobs_processed = 0;
           for (var i = 0; i < jobs.length; i++) {
             (function(job) {
@@ -180,18 +176,25 @@ router.route('/jobs')
               });
             })(jobs[i]);
           }
+          var checkInventory = function() {
+            res.status(200);
+            res.json(jobs);
+          }
         }
       );
     });
   });
 
-function calcMaterials(item_group, blueprint_material_efficiency, runs, quantity) {
+function calcMaterials(item_group, blueprint_material_efficiency, runs, one_run_quantity) {
+  if (group.match('Relic')) {
+    return one_run_quantity * runs;
+  }
   var facility_multiplier = 1;
   if (item_group in ['Hybrid Tech Components', 'Tactical Destroyer']) {
     facility_multiplier = 0.98;
   }
   var me = facility_multiplier * blueprint_material_efficiency;
-  return Math.ceil(Math.max(quantity * me, 1) * runs);
+  return Math.ceil(Math.max(one_run_quantity * me, 1) * runs);
 }
 
 module.exports = router;
