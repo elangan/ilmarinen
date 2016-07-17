@@ -10,6 +10,12 @@ def to_float(val):
 def to_int(val):
     return int(re.sub('[^0-9]', '', val))
 
+BLUEPRINT_GROUPS = [
+    'Tactical Destroyer Blueprints',
+    'Strategic Cruiser Blueprints',
+    'Subsystem Blueprints',
+]
+
 # Exclude built items from import
 EXCLUDE_GROUPS = [
     'Tactical Destroyer Blueprints',
@@ -36,7 +42,7 @@ with open('spreadsheet_data.csv', 'r') as f:
         item = inventory[row['Item']][row['Date Acquired']][to_float(row['Unit Price'])]
         item['qty'] += to_int(row['Qty'])
         
-        if row['Group'] in EXCLUDE_GROUPS:
+        if row['Group'] in BLUEPRINT_GROUPS:
             blueprints[inventory_id] = {'runs': row['Runs'], 'me': row['ME']}
         
 with open('item_names.csv', 'w') as f:
