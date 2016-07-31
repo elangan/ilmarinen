@@ -1,8 +1,8 @@
 import csv
 import re
+import requests
 
-# Imports all purchased materials into the inventory and blueprint tables.
-# Also populates the group table for all items.
+# Imports all purchased materials into the inventory and blueprint via API calls.
 
 def to_float(val):
     return float(re.sub('[^0-9.]', '', val))
@@ -50,18 +50,17 @@ with open('item_names.csv', 'w') as f:
     for item in groups.keys():
         writer.writerow([item, groups[item]])  # TODO import typeIDs from YAML
 
-with open('inventory.csv', 'w') as f:
-    writer = csv.writer(f)
-    for item_name in inventory.keys():
-        if groups[item_name] in EXCLUDE_GROUPS:
-            continue
-        for date in inventory[item_name].keys():
-            for price in inventory[item_name][date].keys():
-                item = inventory[item_name][date][price]
-                # Any Hybrid Polymer batch that divides evenly by 10 was built.
-                if groups[item_name] == 'Hybrid Polymers' and item['qty'] % 10 == 0:
-                    continue
-                writer.writerow([item['id'], item_name, item['qty'], price, date])
+for item_name in inventory.keys():
+    if groups[item_name] in EXCLUDE_GROUPS:
+        continue
+    for date in inventory[item_name].keys():
+        for price in inventory[item_name][date].keys():
+            item = inventory[item_name][date][price]
+            # Any Hybrid Polymer batch that divides evenly by 10 was built.
+            if groups[item_name] == 'Hybrid Polymers' and item['qty'] % 10 == 0:
+                continue
+            item = {'item_name': item_name, 'quantity': item['qty'], 'unit_price': price, 'date_acquired': date}
+            resp = requests.post('http://localhost:8080/api/inventory', json=item)
 
 with open('blueprints.csv', 'w') as f:
     writer = csv.writer(f)
