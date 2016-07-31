@@ -1,4 +1,5 @@
 var sqlite = require('sqlite3').verbose();
+var wait = require('wait.for');
 
 function inventory(db) {
 	this.db_ = db;
@@ -30,40 +31,23 @@ inventory.prototype.getAvailable = function() {
 };
 
 inventory.prototype.addItems = function(items, cb) {
-  var processed = 0;
-  var error = null;
-	var self = this;
-
-  var done = function() {
-    if (error) {
-      self.db_.run('ROLLBACK;');
-    } else {
-      self.db_.run('COMMIT TRANSACTION;');
-      self.items_.push.apply(self.items_, items);
+  var db = this.db_;
+  wait.forMethod(db, 'run', 'BEGIN TRANSACTION');
+  try {
+    for (var i = 0; i < items.length; i++) {
+      items[i].allocated = 0;
+      items[i].id = wait.forMethod(this.db_, 'insert',
+          'INSERT OR ROLLBACK INTO inventory (item_name, quantity, unit_price, date_acquired) VALUES(?, ?, ?, ?)',
+          [items[i].item_name, items[i].quantity, items[i].unit_price, items[i].date_acquired]);
     }
-    cb(error || items);
+  } catch(err) {
+    this.db_.run('ROLLBACK');
+    cb(err);
   }
 
-	this.db_.serialize();
-  self.db_.run('BEGIN TRANSACTION;');
-  for (var i = 0; i < items.length; i++) {
-    items[i].allocated = 0;
-    self.db_.run('INSERT OR ROLLBACK INTO inventory (item_name, quantity, unit_price, date_acquired) ' +
-                 'VALUES(?, ?, ?, ?);',
-                 [items[i].item_name, items[i].quantity, items[i].unit_price, items[i].date_acquired],
-                 (function(items, i) {
-                   return function(err) {
-                     if(err) {
-                       error = err;
-                     } else {
-                       items[i].id = this.lastID;
-                     }
-                     if (i == (items.length - 1)) {
-                       done();
-                     }
-                   }
-                 })(items, i));
-  }
+  this.db_.run('COMMIT');
+  this.items_.push.apply(this.items_, items);
+  cb(undefined, items);
 };
 
 module.exports = inventory;
