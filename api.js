@@ -1,5 +1,6 @@
 var express = require('express');
 var fs = require('fs');
+var inventory = require('./inventory');
 var request = require('request');
 var sqlite = require('sqlite3').verbose();
 
@@ -20,79 +21,40 @@ db.on('trace', function(query) {
   console.log('Executing query: ' + query);
 });
 
+var inv = new inventory(db);
 var router = express.Router();
 
 // test route to make sure everything is working (accessed at GET http://localhost:8080/api)
 router.get('/', function(req, res) {
-    res.json({ message: 'Then began old Wainamoinen, ' +
-      'Ancient bard and famous singer, ' +
-      'To renew his incantations;' });
+  res.json({ message: 'Then began old Wainamoinen, ' +
+    'Ancient bard and famous singer, ' +
+    'To renew his incantations;' });
 });
 
 router.route('/inventory')
   .get(function(req, res) {
-    db.all('SELECT * FROM inventory;', function(err, rows) {
-      if(err) {
-        res.json({"error": err});
-        res.status(502);
-        return;
-      }
-
-      res.json(rows);
-      res.status(200);
-    });
+    res.json(inv.getAll());
+    res.status(200);
   })
   .post(function(req, res) {
-    var items_to_insert = [];
-    if (req.body.items_list) {
-      for (var i = 0; i < req.body.items_list.length; i++) {
-        var item = req.body.items_list[i];
-        items_to_insert.push([item.item_name, item.quantity,
-                              item.unit_price, item.date_acquired]);
-      }
-    } else {
-      items_to_insert.push([req.body.item_name, req.body.quantity,
-                            req.body.unit_price, req.body.date_acquired]);
-    }
-    var error = null;
-    db.serialize(function() {
-      db.run('BEGIN TRANSACTION');
-      for (var i = 0; i < items_to_insert.length; i++) {
-        db.run('INSERT OR ROLLBACK INTO inventory VALUES(?, ?, ?, ?)', items_to_insert[i],
-               function(err) {
-                 if(err) { error = err; return; }
-                 new_ids.push(this.lastID);
-               }
-        );
-        if (error) break;
+    inv.addItems(req.body.items_list || [req.body],
+      function(error_or_items) {
+      if (error_or_items instanceof Array) {
+        res.json(error_or_items);
+        res.status(201);
+      } else {
+        res.json({'error': error_or_items});
+        res.status(502);
       }
     });
-    if (error) {
-      res.json({'error': error});
-      res.status(502);
-    } else {
-      res.json({'new_ids': new_ids});
-      res.status(201);
-    }
   });
 
 router.get('/inventory/available', function(req, res) {
-  db.all('SELECT inv.id, inv.item_name, inv.unit_price, (inv.quantity - SUM(COALESCE(alloc.quantity, 0))) AS avail_qty ' +
-          'FROM inventory AS inv ' +
-          'LEFT JOIN job_allocation AS alloc ON inv.id = alloc.inventory_id ' +
-          'GROUP BY inv.id ' +
-          'HAVING (inv.quantity - SUM(COALESCE(alloc.quantity, 0))) > 0;',
-          function(err, rows) {
-            if (err) {
-              res.json({"error": err});
-              res.status(502);
-              return;
-            }
-            res.json({'results': rows});
-          });
+  res.json(inv.getAvailable());
+  res.status(200);
 });
 
-router.route('/jobs')
+/*router.route('/jobs')
   .get(function(req, res) {
     db.all('SELECT inv.item_name, blueprint_id, start_time, end_time, job_fee, output_lot ' +
            'FROM jobs JOIN inventory AS inv ON blueprint_id = inv.id;',
@@ -118,6 +80,7 @@ router.route('/jobs')
       jobs.push({'blueprint_id': req.body.blueprint_id, 'runs': req.body.runs});
     }
     db.all('SELECT * FROM inventory LEFT JOIN blueprint_copies ON inventory.id = blueprint_copies.inventory_id ' +
+           'LEFT JOIN item_names ON inventory.item_name = item_names.item_name ' +
            'WHERE id in (' + jobs.map(function(j) { return j.blueprint_id }).join(',') +');', function(err, rows) {
       if(err) { res.json(err); res.status(502); return; }
       for (var i = 0; i < jobs.length; i++) {
@@ -129,10 +92,11 @@ router.route('/jobs')
                 jobs[i].error = 'Too many runs requested, blueprint only has ' + rows[j].runs + ' available.';
                 res.status(502); res.json(jobs); return;
               }
-            }*/
+            }
             jobs[i].blueprint_name = rows[j].item_name;
             jobs[i].material_efficiency = rows[j].material_efficiency;
             jobs[i].blueprint_cost = rows[j].unit_price;
+            jobs[i].group = rows[j].group;
           }
         }
       }
@@ -149,6 +113,7 @@ router.route('/jobs')
               }
             }
           }
+          console.log(jobs);
           var jobs_processed = 0;
           for (var i = 0; i < jobs.length; i++) {
             (function(job) {
@@ -157,7 +122,7 @@ router.route('/jobs')
                   res.json({'upstream_status': resp.statusCode, 'error': err}); res.status(502); return;     
                 }
                 var blueprint_info = JSON.parse(body);
-                if (job.blueprint_name.match('Relic')) {
+                if (job.blueprint_name.match('Relic') || job.blueprint_name.match('Hull Section')) {
                   var one_run_materials = blueprint_info.activityMaterials[8];  // Invention
                 } else {
                   one_run_materials = blueprint_info.activityMaterials[1];  // Manufacturing
@@ -166,7 +131,7 @@ router.route('/jobs')
                 for (var i = 0; i < one_run_materials.length; i++) {
                   job.materials.push({
                     name: one_run_materials[i].name,
-                    qty: calcMaterials(job.group, job.material_efficiency, one_run_materials[i].quantity, job.runs);
+                    qty: calcMaterials(job.group, job.material_efficiency, one_run_materials[i].quantity, job.runs),
                   });
                 }
                 jobs_processed++;
@@ -183,7 +148,7 @@ router.route('/jobs')
         }
       );
     });
-  });
+  });*/
 
 function calcMaterials(item_group, blueprint_material_efficiency, runs, one_run_quantity) {
   if (group.match('Relic')) {
