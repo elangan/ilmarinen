@@ -3,6 +3,7 @@ var fs = require('fs');
 var inventory = require('./inventory');
 var request = require('request');
 var sqlite = require('sqlite3').verbose();
+var wait = require('wait.for');
 
 var DB_PATH = './data/ilmarinen.sqlite';
 var exists = fs.existsSync(DB_PATH);
@@ -16,6 +17,13 @@ if (!exists) {
     });
   });
 }
+
+// wait.for insert statement wrapper to fetch lastID
+sqlite.Database.prototype.insert = function(sql, params, callback) {
+  this.run(sql, params, function(err) {
+    return callback(err, this.lastID);
+  });
+};
 
 db.on('trace', function(query) {
   console.log('Executing query: ' + query);
@@ -37,16 +45,18 @@ router.route('/inventory')
     res.status(200);
   })
   .post(function(req, res) {
-    inv.addItems(req.body.items_list || [req.body],
-      function(error_or_items) {
-      if (error_or_items instanceof Array) {
-        res.json(error_or_items);
-        res.status(201);
-      } else {
-        res.json({'error': error_or_items});
-        res.status(502);
-      }
-    });
+    wait.launchFiber(
+      inv.addItems.bind(inv),
+      req.body.items_list || [req.body],
+      function(err, items) {
+        if (err) {
+          res.json({'error': err});
+          res.status(502);
+        } else {
+          res.json(items);
+          res.status(201);
+        }
+      });
   });
 
 router.get('/inventory/available', function(req, res) {
