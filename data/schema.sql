@@ -1,15 +1,9 @@
-CREATE TABLE items (
-    name TEXT PRIMARY KEY
-  , type TEXT NOT NULL
-);
-
 CREATE TABLE inventory (
     id INTEGER PRIMARY KEY AUTOINCREMENT
   , item_name TEXT NOT NULL
   , quantity INTEGER CHECK(quantity > 0)
   , unit_price INTEGER CHECK(unit_price > 0)  -- in tenths of an isk
   , date_acquired TEXT DEFAULT CURRENT_TIMESTAMP
-  , FOREIGN KEY(item_name) REFERENCES items(name)
 );
 
 CREATE TABLE blueprint_copies (
@@ -87,7 +81,6 @@ CREATE TABLE transactions(
   , client_name TEXT NOT NULL
   , station_name TEXT NOT NULL
   , journal_ref_id INTEGER NOT NULL
-  , FOREIGN KEY(item_name) REFERENCES items(name)
   , FOREIGN KEY(journal_ref_id) REFERENCES journal(ref_id)
 );
 

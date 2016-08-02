@@ -1,0 +1,138 @@
+'0':
+  published: false
+  name: '#System'
+'1':
+  published: false
+  name: Owner
+'2':
+  published: true
+  name: Celestial
+'3':
+  published: false
+  name: Station
+'4':
+  iconID: 22
+  published: true
+  name: Material
+'5':
+  iconID: 33
+  published: true
+  name: Accessories
+'6':
+  published: true
+  name: Ship
+'7':
+  iconID: 67
+  published: true
+  name: Module
+'8':
+  published: true
+  name: Charge
+'9':
+  iconID: 21
+  published: true
+  name: Blueprint
+'10':
+  published: false
+  name: Trading
+'11':
+  published: false
+  name: Entity
+'14':
+  iconID: 0
+  published: false
+  name: Bonus
+'16':
+  iconID: 33
+  published: true
+  name: Skill
+'17':
+  iconID: 0
+  published: true
+  name: Commodity
+'18':
+  iconID: 0
+  published: true
+  name: Drone
+'20':
+  iconID: 0
+  published: true
+  name: Implant
+'22':
+  iconID: 0
+  published: true
+  name: Deployable
+'23':
+  iconID: 0
+  published: true
+  name: Starbase
+'24':
+  iconID: 0
+  published: true
+  name: Reaction
+'25':
+  published: true
+  name: Asteroid
+'26':
+  published: false
+  name: WorldSpace
+'29':
+  published: false
+  name: Abstract
+'30':
+  published: true
+  name: Apparel
+'32':
+  published: true
+  name: Subsystem
+'34':
+  published: true
+  name: Ancient Relics
+'35':
+  published: true
+  name: Decryptors
+'39':
+  published: true
+  name: Infrastructure Upgrades
+'40':
+  published: true
+  name: Sovereignty Structures
+'41':
+  published: true
+  name: Planetary Interaction
+'42':
+  published: true
+  name: Planetary Resources
+'43':
+  published: true
+  name: Planetary Commodities
+'46':
+  published: true
+  name: Orbitals
+'49':
+  published: false
+  name: Placeables
+'53':
+  published: false
+  name: Effects
+'54':
+  published: false
+  name: Lights
+'59':
+  published: false
+  name: Cells
+'63':
+  published: true
+  name: Special Edition Assets
+'65':
+  published: true
+  name: Structure
+'66':
+  published: true
+  name: Structure Module
+'87':
+  published: true
+  name: Fighter
+'350001':
+  published: false
+  name: Infantry
