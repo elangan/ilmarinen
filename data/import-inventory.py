@@ -29,7 +29,7 @@ groups = {}
 inventory_id = 1
 inventory = {}
 blueprints = {}
-with open('spreadsheet_data.csv', 'r') as f:
+with open('inventory.csv', 'r') as f:
     reader = csv.DictReader(f)
     for row in reader:
         groups.setdefault(row['Item'], row['Group'])
@@ -45,11 +45,6 @@ with open('spreadsheet_data.csv', 'r') as f:
         if row['Group'] in BLUEPRINT_GROUPS:
             blueprints[inventory_id] = {'runs': row['Runs'], 'me': row['ME']}
         
-with open('item_names.csv', 'w') as f:
-    writer = csv.writer(f)
-    for item in groups.keys():
-        writer.writerow([item, groups[item]])  # TODO import typeIDs from YAML
-
 for item_name in inventory.keys():
     if groups[item_name] in EXCLUDE_GROUPS:
         continue
@@ -61,8 +56,3 @@ for item_name in inventory.keys():
                 continue
             item = {'item_name': item_name, 'quantity': item['qty'], 'unit_price': price, 'date_acquired': date}
             resp = requests.post('http://localhost:8080/api/inventory', json=item)
-
-with open('blueprints.csv', 'w') as f:
-    writer = csv.writer(f)
-    for id in blueprints.keys():
-        writer.writerow([id, blueprints[id]['runs'], blueprints[id]['me']])
