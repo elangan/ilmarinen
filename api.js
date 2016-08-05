@@ -41,7 +41,7 @@ router.get('/', function(req, res) {
     'To renew his incantations;' });
 });
 
-function newStuffOrError(err, new_stuff) {
+function newStuffOrError(res, err, new_stuff) {
   if (err) {
     res.json({'error': err});
     res.status(502);
@@ -57,7 +57,7 @@ router.route('/inventory')
     res.status(200);
   })
   .post(function(req, res) {
-    wait.launchFiber(inv.addItems.bind(inv), req.body.items_list || [req.body], newStuffOrError);
+    wait.launchFiber(inv.addItems.bind(inv), req.body.items_list || [req.body], newStuffOrError.bind(this, res));
   });
 
 router.get('/inventory/available', function(req, res) {
@@ -71,7 +71,7 @@ router.route('/jobs')
     res.status(200);
   })
   .post(function(req, res) {
-    wait.launchFiber(j.addJobs.bind(j), req.body.items_list || [req.body], newStuffOrError);
+    wait.launchFiber(j.addJobs.bind(j), req.body.items_list || [req.body],  newStuffOrError.bind(this, res));
   });
 
 function calcMaterials(item_group, blueprint_material_efficiency, runs, one_run_quantity) {
