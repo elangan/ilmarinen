@@ -4,7 +4,7 @@ var wait = require('wait.for');
 function inventory(db) {
   this.db_ = db;
   this.items_ = null;
-  db.all('SELECT inv.id, inv.item_name, inv.unit_price, inv.quantity, ' +
+  db.all('SELECT inv.id, inv.item_name, inv.unit_price, inv.quantity, inv.date_acquired, ' +
          'bpc.runs, bpc.material_efficiency, ' +
          'SUM(COALESCE(alloc.quantity, 0)) AS allocated ' +
          'FROM inventory AS inv ' +
