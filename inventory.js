@@ -29,7 +29,7 @@ inventory.prototype.getAvailable = function() {
 
 inventory.prototype.getItems = function(ids) {
   return this.items_.filter(function(item) {
-    return item.id in ids;
+    return ids.indexOf(item.id) > -1;
   });
 };
 
