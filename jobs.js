@@ -19,9 +19,7 @@ jobs.prototype.getAll = function() {
 
 jobs.prototype.addJobs = function(new_jobs, cb) {
   var db = this.db_;
-  
   var blueprints = this.inventory_.getItems(new_jobs.map(function(j) { return j.blueprint_id; }));
-
   for (var i = 0; i < new_jobs.length; i++) {
     for (var j = 0; j < blueprints.length; j++) {
       if (new_jobs[i].blueprint_id == blueprints[j].id) {
@@ -39,12 +37,36 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
     }
   }
 
+  var missing_ids = [];
+  for (var i = 0; i < new_jobs.length; i++) {
+    if (!new_jobs[i].blueprint_name) {
+      missing_ids.push(new_jobs[i].id);
+    }
+  }
+  if (missing_ids.length > 0) {
+    cb('Blueprint not found for ids: ' + missing_ids);
+    return;
+  }
+
   new_jobs = new_jobs.map(function(j) {
-    var typeid = sde.getItemTypeAndGroup(j.blueprint_id);
+    var typeid = sde.getItemTypeAndGroup(j.blueprint_name);
     j.typeid = typeid.typeid;
     j.group = typeid.group;
     return j;
   });
+
+  // Validate output type
+  // Validate required materials
+
+  for (var i = 0; i < new_jobs.length; i++) {
+    var blueprint_data = sde.getBlueprintData(new_jobs[i].typeid);
+  }
+
+  // Create output lot
+  // Create job
+  // Create allocations
+
+  cb(null, []);
   console.log(new_jobs);
 
   /*var jobs_processed = 0;
