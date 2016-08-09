@@ -17,92 +17,100 @@ jobs.prototype.getAll = function() {
   return this.jobs_;
 };
 
+// TODO simplify this - post item to be built, and attempt to allocate a blueprint via FIFO just like materials
+// separate calculations and persistence into helper functions
 jobs.prototype.addJobs = function(new_jobs, cb) {
   var db = this.db_;
-  var blueprints = this.inventory_.getItems(new_jobs.map(function(j) { return j.blueprint_id; }));
+  // Validate blueprint ID
+  var blueprints = [];
   for (var i = 0; i < new_jobs.length; i++) {
-    for (var j = 0; j < blueprints.length; j++) {
-      if (new_jobs[i].blueprint_id == blueprints[j].id) {
-        if (blueprints[j].item_name.match('Blueprint')) {
-          if (new_jobs[i].runs > blueprints[j].runs) {
-            cb('Too many runs requested, blueprint for ' + blueprints[j].item_name + 
-              ' only has ' + blueprints[j].runs + ' available.');
-            return;
-          }
-        }
-        new_jobs[i].blueprint_name = blueprints[j].item_name;
-        new_jobs[i].material_efficiency = blueprints[j].material_efficiency;
-        new_jobs[i].blueprint_cost = blueprints[j].unit_price;
+    var blueprint = this.inventory_.getItem(new_jobs[i].blueprint_id);
+    if (!blueprint) {
+      cb('Blueprint not found for id: ' + new_jobs[i].blueprint_id);
+      return;
+    }
+    if (new_jobs[i].runs > blueprint.runs) {
+      cb('Too many runs requested, blueprint for ' + blueprint.item_name + 
+        ' only has ' + blueprint.runs + ' available.');
+      return;
+    }
+    blueprints.push(blueprint);
+  }
+
+  // Validate output_type and materials
+  var blueprint_data = [];
+  var output_items = [];
+  for (var i = 0; i < new_jobs.length; i++) {
+    blueprint_data.push(sde.getBlueprintData(new_jobs[i].blueprint_name));
+    var activity;
+    if (blueprint_data[i].blueprint_group.indexOf('Relic') > -1) {
+      activity = 'invention';
+    } else {
+      activity = 'manufacturing';
+    }
+    
+    var found_output = false;
+    for (var output in blueprint_data[i][activity].products) {
+      if (output.hasOwnProperty('name') && output[name] == new_jobs[i].output_type) {
+        found_output = true;
       }
     }
-  }
+    if (!found_output) {
+      cb('Incorrect output type for job: ' + new_jobs[i].blueprint_id);
+    }
+    output_items.push({ 'item_name': new_jobs[i].output_type });
 
-  var missing_ids = [];
-  for (var i = 0; i < new_jobs.length; i++) {
-    if (!new_jobs[i].blueprint_name) {
-      missing_ids.push(new_jobs[i].id);
+    var missing_materials = [];
+    for (var material in blueprint_data[activity].materials) {
+      var total_amount = calcMaterials(blueprint_data.group,
+                                       new_jobs[i].material_efficiency,
+                                       new_jobs[i].runs,
+                                       material.quantity);
+      // TODO accumulate calculated material amounts from blueprint and price from inventory
+      var needed_amount = total_amount - this.inventory_.getAvailableQuantity(material.name);
+      if (needed_amount > 0) {
+        missing_materials.push({name: material.name, needed_quantity: needed_amount});
+      }
+    }
+    if (missing_materials.length > 0) {
+      cb('Missing materials to build ' + new_jobs[i].name + ' ' + missing_materials);
+      return;
     }
   }
-  if (missing_ids.length > 0) {
-    cb('Blueprint not found for ids: ' + missing_ids);
-    return;
+
+  try {
+    wait.forMethod(db, 'run', 'START TRANSACTION');
+    this.inventory_.addItems(output_items);
+    for (var i = 0; i < new_jobs.length; i++) {
+      new_jobs[i].output_lot = output_items[i].id;
+      new_jobs[i].id = wait.forMethod(db, 'insert',
+        'INSERT OR ROLLBACK INTO jobs (blueprint_id, start_time, end_time, job_fee, output_lot) VALUES (?, ?, ?, ?, ?)',
+        [new_jobs[i].blueprint_id, '1970-01-01', '1970-01-01', 0, new_jobs[i].output_lot]);
+      this.inventory_.allocate(...);
+    }
+  } catch(err) {
+    this.db_.run('ROLLBACK');
+    cb(err);
   }
 
-  new_jobs = new_jobs.map(function(j) {
-    var typeid = sde.getItemTypeAndGroup(j.blueprint_name);
-    j.typeid = typeid.typeid;
-    j.group = typeid.group;
-    return j;
-  });
-
-  // Validate output type
-  // Validate required materials
-
-  for (var i = 0; i < new_jobs.length; i++) {
-    var blueprint_data = sde.getBlueprintData(new_jobs[i].typeid);
-  }
-
-  // Create output lot
-  // Create job
-  // Create allocations
-
-  cb(null, []);
-  console.log(new_jobs);
-
-  /*var jobs_processed = 0;
-  for (var i = 0; i < jobs.length; i++) {
-    (function(job) {
-      request('https://www.fuzzwork.co.uk/blueprint/api/blueprint.php?typeid=' + job.typeid, function(err, resp, body) {
-        if (err || resp.statusCode != 200) {
-          res.json({'upstream_status': resp.statusCode, 'error': err}); res.status(502); return;     
-        }
-        var blueprint_info = JSON.parse(body);
-        if (job.blueprint_name.match('Relic') || job.blueprint_name.match('Hull Section')) {
-          var one_run_materials = blueprint_info.activityMaterials[8];  // Invention
-        } else {
-          one_run_materials = blueprint_info.activityMaterials[1];  // Manufacturing
-        }
-        job.materials = []
-        for (var i = 0; i < one_run_materials.length; i++) {
-          job.materials.push({
-            name: one_run_materials[i].name,
-            qty: calcMaterials(job.group, job.material_efficiency, one_run_materials[i].quantity, job.runs),
-          });
-        }
-        jobs_processed++;
-        if (jobs_processed == jobs.length) {
-          checkInventory();
-        }
-      });
-    })(jobs[i]);
-  }
-  var checkInventory = function() {
-    res.status(200);
-    res.json(jobs);
-  }
-}
-      );
-    });*/
+  this.db_.run('COMMIT');
+  // TODO new_jobs should only have the following fields at the end, accumulate other data in parallel arrays
+  // db.all('SELECT inv.item_name, blueprint_id, start_time, end_time, job_fee, output_lot ' +
+  //        'FROM jobs JOIN inventory AS inv ON blueprint_id = inv.id',  
+  this.jobs_.push.apply(this.jobs_, new_jobs);
+  cb(undefined, new_jobs);
 };
+
+function calcMaterials(item_group, blueprint_material_efficiency, runs, one_run_quantity) {
+  if (group.match('Relic')) {
+    return one_run_quantity * runs;
+  }
+  var facility_multiplier = 1;
+  if (item_group in ['Hybrid Tech Components', 'Tactical Destroyer']) {
+    facility_multiplier = 0.98;
+  }
+  var me = facility_multiplier * blueprint_material_efficiency;
+  return Math.ceil(Math.max(one_run_quantity * me, 1) * runs);
+}
 
 module.exports = jobs;

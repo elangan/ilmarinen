@@ -74,17 +74,5 @@ router.route('/jobs')
     wait.launchFiber(j.addJobs.bind(j), req.body.items_list || [req.body],  newStuffOrError.bind(this, res));
   });
 
-function calcMaterials(item_group, blueprint_material_efficiency, runs, one_run_quantity) {
-  if (group.match('Relic')) {
-    return one_run_quantity * runs;
-  }
-  var facility_multiplier = 1;
-  if (item_group in ['Hybrid Tech Components', 'Tactical Destroyer']) {
-    facility_multiplier = 0.98;
-  }
-  var me = facility_multiplier * blueprint_material_efficiency;
-  return Math.ceil(Math.max(one_run_quantity * me, 1) * runs);
-}
-
 module.exports = router;
 
