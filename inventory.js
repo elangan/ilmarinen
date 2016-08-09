@@ -27,10 +27,27 @@ inventory.prototype.getAvailable = function() {
   });
 };
 
+inventory.prototype.getItem = function(id) {
+  return this.getItems([id])[0];
+};
+
 inventory.prototype.getItems = function(ids) {
   return this.items_.filter(function(item) {
     return ids.indexOf(item.id) > -1;
   });
+};
+
+inventory.prototype.getAvailableQuantity = function(item_name) {
+  var available_quantity = 0;
+  this.items_.forEach(function(item) {
+    if (item.item_name == item_name) {
+      var available = item.quantity - item.allocated;
+      if (available > 0) {
+        available_quantity += available;
+      }
+    }
+  });
+  return available_quantity;
 };
 
 inventory.prototype.addItems = function(items, cb) {
@@ -44,13 +61,15 @@ inventory.prototype.addItems = function(items, cb) {
           [items[i].item_name, items[i].quantity, items[i].unit_price, items[i].date_acquired]);
     }
   } catch(err) {
-    this.db_.run('ROLLBACK');
-    cb(err);
+    wait.forMethod(db, 'run', 'ROLLBACK');
+    if (cb) { cb(err) };
+    return err;
   }
 
-  this.db_.run('COMMIT');
+  wait.forMethod(db, 'run', 'COMMIT');
   this.items_.push.apply(this.items_, items);
-  cb(undefined, items);
+  if (cb) { cb(undefined, items) };
+  return items;
 };
 
 module.exports = inventory;
