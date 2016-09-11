@@ -122,6 +122,11 @@ inventory.prototype.addItems = function(items, cb) {
       items[i].id = wait.forMethod(db, 'insert',
           'INSERT OR ROLLBACK INTO inventory (item_name, quantity, unit_price, date_acquired) VALUES(?, ?, ?, ?)',
           [items[i].item_name, items[i].quantity, items[i].unit_price, items[i].date_acquired]);
+      if (items[i].hasOwnProperty('runs')) {
+        wait.forMethod(db, 'insert',
+          'INSERT OR ROLLBACK INTO blueprint_copies (inventory_id, runs, material_efficiency) VALUES(?, ?, ?)',
+          [items[i].id, items[i].runs, items[i].material_efficiency]);
+      }
     }
   } catch(err) {
     wait.forMethod(db, 'run', 'ROLLBACK');
