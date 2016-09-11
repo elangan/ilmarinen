@@ -43,32 +43,32 @@ router.get('/', function(req, res) {
 
 function newStuffOrError(res, err, new_stuff) {
   if (err) {
-    res.json({'error': err});
     res.status(502);
+    res.json({'error': err});
   } else {
-    res.json(new_stuff);
     res.status(201);
+    res.json(new_stuff);
   }
 }
 
 router.route('/inventory')
   .get(function(req, res) {
-    res.json(inv.getAll());
     res.status(200);
+    res.json(inv.getAll());
   })
   .post(function(req, res) {
     wait.launchFiber(inv.addItems.bind(inv), req.body.items_list || [req.body], newStuffOrError.bind(this, res));
   });
 
 router.get('/inventory/available', function(req, res) {
-  res.json(inv.getAvailable());
   res.status(200);
+  res.json(inv.getAvailable());
 });
 
 router.route('/jobs')
   .get(function(req, res) {
-    res.json(j.getAll());
     res.status(200);
+    res.json(j.getAll());
   })
   .post(function(req, res) {
     wait.launchFiber(j.addJobs.bind(j), req.body.items_list || [req.body],  newStuffOrError.bind(this, res));
