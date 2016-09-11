@@ -11,15 +11,15 @@ def to_int(val):
     return int(re.sub('[^0-9]', '', val))
 
 BLUEPRINT_GROUPS = [
-    'Tactical Destroyer Blueprints',
-    'Strategic Cruiser Blueprints',
+    'Tactical Destroyer Blueprint',
+    'Strategic Cruiser Blueprint',
     'Subsystem Blueprints',
 ]
 
 # Exclude built items from import
 EXCLUDE_GROUPS = [
-    'Tactical Destroyer Blueprints',
-    'Strategic Cruiser Blueprints',
+    'Tactical Destroyer Blueprint',
+    'Strategic Cruiser Blueprint',
     'Subsystem Blueprints',
     'Hybrid Tech Component',
     'Modules and Ammo'
