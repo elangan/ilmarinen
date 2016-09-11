@@ -22,53 +22,57 @@ jobs.prototype.getAll = function() {
 jobs.prototype.addJobs = function(new_jobs, cb) {
   var db = this.db_;
   var now = new Date(Date.now()).toISOString()  // TODO learn how to calculate build time
-  // Validate blueprint ID
-  var blueprints = [];
+
+  // Validate output_type and materials
+  var output_items = [];
+  var job_materials = [];
   for (var i = 0; i < new_jobs.length; i++) {
+    // Validate blueprint ID
     var blueprint = this.inventory_.getItem(new_jobs[i].blueprint_id);
     if (!blueprint) {
       cb('Blueprint not found for id: ' + new_jobs[i].blueprint_id);
       return;
     }
-    if (new_jobs[i].runs > blueprint.runs) {
-      cb('Too many runs requested, blueprint for ' + blueprint.item_name + 
-        ' only has ' + blueprint.runs + ' available.');
-      return;
-    }
-    blueprints.push(blueprint);
-  }
-
-  // Validate output_type and materials
-  var blueprint_data = [];
-  var output_items = [];
-  var job_materials = [];
-  for (var i = 0; i < new_jobs.length; i++) {
-    blueprint_data.push(sde.getBlueprintData(new_jobs[i].blueprint_name));
+    var blueprint_data = sde.getBlueprintData(blueprint.item_name);
     var activity;
-    if (blueprint_data[i].blueprint_group.indexOf('Relic') > -1) {
+    if (blueprint_data.blueprint_group.indexOf('Relic') > -1) {
       activity = 'invention';
     } else {
       activity = 'manufacturing';
     }
     
+    // Validate output type
     var found_output = false;
-    for (var output in blueprint_data[i][activity].products) {
-      if (output.hasOwnProperty('name') && output[name] == new_jobs[i].output_type) {
+    var products = blueprint_data.activities[activity].products;
+    for (var j = 0; j < products.length; j++) {
+      if (products[j].name == new_jobs[i].output_type) {
         found_output = true;
       }
     }
     if (!found_output) {
       cb('Incorrect output type for job: ' + new_jobs[i].blueprint_id);
+      return;
     }
 
+    // Validate blueprint runs for manufacturing jobs
+    if (activity == 'manufacturing') {
+      if (new_jobs[i].runs > blueprint.runs) {
+        cb('Too many runs requested, blueprint for ' + blueprint.item_name + 
+          ' only has ' + blueprint.runs + ' available.');
+        return;
+      }
+    }
+
+    // Accumulate required materials and check for available materials
     var missing_materials = [];
     var materials = [{
-      'material': blueprints[i].name,
-      'amount': 1,
-      'unit_price': blueprints[i].unit_price
+      'item_name': blueprint.item_name,
+      'quantity': 1,
+      'unit_price': blueprint.unit_price
     }];
-    for (var material in blueprint_data[activity].materials) {
-      var needed_amount = calcMaterials(blueprint_data.group,
+    for (var j = 0; j < blueprint_data.activities[activity].materials.length; j++) {
+      var material = blueprint_data.activities[activity].materials[j];
+      var needed_amount = calcMaterials(sde.getItemTypeAndGroup(blueprint.item_name).group,
                                         new_jobs[i].material_efficiency,
                                         new_jobs[i].runs,
                                         material.quantity);
@@ -77,14 +81,14 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
         missing_materials.push({name: material.name, needed_quantity: needed_amount - available_amount});
       } else {
         materials.push({
-          'material': material.name,
-          'amount': needed_amount,
+          'item_name': material.name,
+          'quantity': needed_amount,
           'unit_price': this.inventory_.getUnitPrice(material.name, needed_amount)
         });
       }
     }
     if (missing_materials.length > 0) {
-      cb('Missing materials to build ' + new_jobs[i].name + ' ' + missing_materials);
+      cb('Missing materials to build ' + new_jobs[i].output_type + ' ' + missing_materials);
       return;
     }
     job_materials.push(materials);
@@ -94,17 +98,18 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
     // - find system cost index for J+
     var built_price = 0;
     for (var j = 0; j < materials.length; j++) {
-      built_price += materials.amount * materials.unit_price;
+      built_price += materials.quantity * materials.unit_price;
     }
+    var built_quantity = new_jobs[i].runs * blueprint_data.activities[activity].products[0].quantity;
 
     output_items.push({
       'item_name': new_jobs[i].output_type,
-      'quantity': new_jobs[i].runs * blueprint_data[activity].products.quantity,
-      'unit_price': built_price / (new_job[i].runs * blueprint_data[i][activity].products[0].quantity),
+      'quantity': built_quantity,
+      'unit_price': built_price / built_quantity,
       'date_acquired': now
     });
+    // TODO invention blueprint properties, blueprint quantity
   }
-  cb(undefined, blueprints);
 
   // TODO figure out transaction nesting
   this.inventory_.addItems(output_items);
@@ -123,12 +128,12 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
   cb(undefined, new_jobs);
 };
 
-function calcMaterials(item_group, blueprint_material_efficiency, runs, one_run_quantity) {
-  if (group.match('Relic')) {
+function calcMaterials(blueprint_group, blueprint_material_efficiency, runs, one_run_quantity) {
+  if (blueprint_group.match('Relic')) {
     return one_run_quantity * runs;
   }
   var facility_multiplier = 1;
-  if (item_group in ['Hybrid Tech Components', 'Tactical Destroyer']) {
+  if (item_group in ['Hybrid Component Blueprints', 'Tactical Destroyer Blueprint']) {
     facility_multiplier = 0.98;
   }
   var me = facility_multiplier * blueprint_material_efficiency;
