@@ -21,6 +21,7 @@ jobs.prototype.getAll = function() {
 // separate calculations and persistence into helper functions
 jobs.prototype.addJobs = function(new_jobs, cb) {
   var db = this.db_;
+  var now = new Date(Date.now()).toISOString()  // TODO learn how to calculate build time
   // Validate blueprint ID
   var blueprints = [];
   for (var i = 0; i < new_jobs.length; i++) {
@@ -40,6 +41,7 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
   // Validate output_type and materials
   var blueprint_data = [];
   var output_items = [];
+  var job_materials = [];
   for (var i = 0; i < new_jobs.length; i++) {
     blueprint_data.push(sde.getBlueprintData(new_jobs[i].blueprint_name));
     var activity;
@@ -58,42 +60,62 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
     if (!found_output) {
       cb('Incorrect output type for job: ' + new_jobs[i].blueprint_id);
     }
-    output_items.push({ 'item_name': new_jobs[i].output_type });
 
     var missing_materials = [];
+    var materials = [{
+      'material': blueprints[i].name,
+      'amount': 1,
+      'unit_price': blueprints[i].unit_price
+    }];
     for (var material in blueprint_data[activity].materials) {
-      var total_amount = calcMaterials(blueprint_data.group,
-                                       new_jobs[i].material_efficiency,
-                                       new_jobs[i].runs,
-                                       material.quantity);
-      // TODO accumulate calculated material amounts from blueprint and price from inventory
-      var needed_amount = total_amount - this.inventory_.getAvailableQuantity(material.name);
-      if (needed_amount > 0) {
-        missing_materials.push({name: material.name, needed_quantity: needed_amount});
+      var needed_amount = calcMaterials(blueprint_data.group,
+                                        new_jobs[i].material_efficiency,
+                                        new_jobs[i].runs,
+                                        material.quantity);
+      var available_amount = this.inventory_.getAvailableQuantity(material.name);
+      if (needed_amount > available_amount) {
+        missing_materials.push({name: material.name, needed_quantity: needed_amount - available_amount});
+      } else {
+        materials.push({
+          'material': material.name,
+          'amount': needed_amount,
+          'unit_price': this.inventory_.getUnitPrice(material.name, needed_amount)
+        });
       }
     }
     if (missing_materials.length > 0) {
       cb('Missing materials to build ' + new_jobs[i].name + ' ' + missing_materials);
       return;
     }
-  }
+    job_materials.push(materials);
 
-  try {
-    wait.forMethod(db, 'run', 'START TRANSACTION');
-    this.inventory_.addItems(output_items);
-    for (var i = 0; i < new_jobs.length; i++) {
-      new_jobs[i].output_lot = output_items[i].id;
-      new_jobs[i].id = wait.forMethod(db, 'insert',
-        'INSERT OR ROLLBACK INTO jobs (blueprint_id, start_time, end_time, job_fee, output_lot) VALUES (?, ?, ?, ?, ?)',
-        [new_jobs[i].blueprint_id, '1970-01-01', '1970-01-01', 0, new_jobs[i].output_lot]);
-      this.inventory_.allocate(...);
+    // TODO learn how to calculate building fee
+    // - find algorithm using base prices from typeIDs.yaml
+    // - find system cost index for J+
+    var built_price = 0;
+    for (var j = 0; j < materials.length; j++) {
+      built_price += materials.amount * materials.unit_price;
     }
-  } catch(err) {
-    this.db_.run('ROLLBACK');
-    cb(err);
+
+    output_items.push({
+      'item_name': new_jobs[i].output_type,
+      'quantity': new_jobs[i].runs * blueprint_data[activity].products.quantity,
+      'unit_price': built_price / (new_job[i].runs * blueprint_data[i][activity].products[0].quantity),
+      'date_acquired': now
+    });
+  }
+  cb(undefined, blueprints);
+
+  // TODO figure out transaction nesting
+  this.inventory_.addItems(output_items);
+  for (var i = 0; i < new_jobs.length; i++) {
+    new_jobs[i].output_lot = output_items[i].id;
+    new_jobs[i].id = wait.forMethod(db, 'insert',
+      'INSERT OR ROLLBACK INTO jobs (blueprint_id, start_time, end_time, job_fee, output_lot) VALUES (?, ?, ?, ?, ?)',
+      [new_jobs[i].blueprint_id, now, now, 0, new_jobs[i].output_lot]);
+    this.inventory_.allocate(job_materials[i], new_jobs[i].id);
   }
 
-  this.db_.run('COMMIT');
   // TODO new_jobs should only have the following fields at the end, accumulate other data in parallel arrays
   // db.all('SELECT inv.item_name, blueprint_id, start_time, end_time, job_fee, output_lot ' +
   //        'FROM jobs JOIN inventory AS inv ON blueprint_id = inv.id',  

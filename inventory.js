@@ -50,13 +50,76 @@ inventory.prototype.getAvailableQuantity = function(item_name) {
   return available_quantity;
 };
 
+inventory.prototype.getUnitPrice = function(item_name, quantity) {
+  var found_price = 0;
+  var found_quantity = 0;
+  for (var i = 0; i < this.items_.length; i++) {
+    var item = this.items_[i];
+    if (item.item_name == item_name) {
+      var available = item.quantity - item.allocated;
+      if (available > (quantity - found_quantity)) {
+        found_quantity += quantity - found_quantity;
+        found_price += (quantity - found_quantity) * item.unit_price;
+        break;
+      } else {
+        found_quantity += item.quantity;
+        found_price += available * item.unit_price;
+      }
+    }
+  }
+  if (found_quantity < quantity) {
+    return -1;
+  }
+  return found_price / found_quantity;
+};
+
+inventory.prototype.allocate = function(items, job_id) {
+  var db = this.db_;
+  wait.forMethod(db, 'run', 'BEGIN TRANSACTION');
+  try{
+    for (var i = 0; i < items.length; i++) {
+      items[i].allocated = 0;
+    }
+    for (var j = 0; j < this.items_.length; j++) {
+      var item = this.items_[j];
+      var available = item.quantity - item.allocated;
+      if (available == 0) continue;
+      for (var i = 0; i < items.length; i++) {
+        var needed = items[i].quantity - items[i].allocated;
+        if (needed == 0) continue;
+        if (item.item_name == items[i].item_name && items[i].allocated < items[i].quantity) {
+          if (available > needed) {
+            item.allocated += needed;
+            items[i].allocated += needed;
+            wait.forMethod(db, 'insert',
+              'INSERT OR ROLLBACK INTO job_allocation (inventory_id, job_id, quantity) VALUES (?, ?, ?)',
+              [item.id, job_id, needed]);
+          } else {
+            item.allocated += available;
+            items[i].allocated += available;
+            wait.forMethod(db, 'insert',
+              'INSERT OR ROLLBACK INTO job_allocation (inventory_id, job_id, quantity) VALUES (?, ?, ?)',
+              [item.id, job_id, available]);
+          }
+        }
+      }
+    }
+  } catch(err) {
+    wait.forMethod(db, 'run', 'ROLLBACK');
+    return err;
+  }
+
+  wait.forMethod(db, 'run', 'COMMIT');
+  return;
+};
+
 inventory.prototype.addItems = function(items, cb) {
   var db = this.db_;
   wait.forMethod(db, 'run', 'BEGIN TRANSACTION');
   try {
     for (var i = 0; i < items.length; i++) {
       items[i].allocated = 0;
-      items[i].id = wait.forMethod(this.db_, 'insert',
+      items[i].id = wait.forMethod(db, 'insert',
           'INSERT OR ROLLBACK INTO inventory (item_name, quantity, unit_price, date_acquired) VALUES(?, ?, ?, ?)',
           [items[i].item_name, items[i].quantity, items[i].unit_price, items[i].date_acquired]);
     }
