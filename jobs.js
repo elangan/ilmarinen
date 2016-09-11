@@ -98,17 +98,29 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
     // - find system cost index for J+
     var built_price = 0;
     for (var j = 0; j < materials.length; j++) {
-      built_price += materials.quantity * materials.unit_price;
+      built_price += materials[j].quantity * materials[j].unit_price;
     }
-    var built_quantity = new_jobs[i].runs * blueprint_data.activities[activity].products[0].quantity;
+    var built_quantity = 0;
+    if (activity == 'invention') {
+      built_quantity = 1;
+    } else if(activity == 'manufacturing') {
+      built_quantity = new_jobs[i].runs * blueprint_data.activities[activity].products[0].quantity;
+    }
 
-    output_items.push({
+    var output_item = {
       'item_name': new_jobs[i].output_type,
       'quantity': built_quantity,
       'unit_price': built_price / built_quantity,
       'date_acquired': now
-    });
-    // TODO invention blueprint properties, blueprint quantity
+    };
+
+    if (activity == 'invention') {
+      // TODO Assume Attainment Decryptor for now
+      output_item.runs = blueprint_data.activities[activity].products[0].quantity + 4;
+      output_item.material_efficiency = 0.99;
+    }
+
+    output_items.push(output_item);
   }
 
   // TODO figure out transaction nesting
@@ -121,9 +133,6 @@ jobs.prototype.addJobs = function(new_jobs, cb) {
     this.inventory_.allocate(job_materials[i], new_jobs[i].id);
   }
 
-  // TODO new_jobs should only have the following fields at the end, accumulate other data in parallel arrays
-  // db.all('SELECT inv.item_name, blueprint_id, start_time, end_time, job_fee, output_lot ' +
-  //        'FROM jobs JOIN inventory AS inv ON blueprint_id = inv.id',  
   this.jobs_.push.apply(this.jobs_, new_jobs);
   cb(undefined, new_jobs);
 };
