@@ -21,4 +21,6 @@ with open('jobs.csv', 'r') as f:
 	    	'start_date': row['Start Date'],
 	    	'output_type': row['Output Type']
 	    }
+	    print 'Posting job ' + str(job)
 	    resp = requests.post('http://localhost:8080/api/jobs', json=job)
+	    print resp.status_code + ": " + resp.content
